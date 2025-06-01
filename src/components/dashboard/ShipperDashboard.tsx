@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Package, MapPin, Phone, Clock, CheckCircle, XCircle, Truck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3434/api';
+
+
 interface ShipperDashboardProps {
   user: any;
 }
@@ -38,7 +41,7 @@ const ShipperDashboard = ({ user }: ShipperDashboardProps) => {
   const fetchAssignments = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const url = new URL('http://localhost:3000/api/shipping-management/shipper/my-assignments');
+      const url = new URL(`${API_BASE_URL}/shipping-management/shipper/my-assignments`);
       
       if (selectedStatus !== "all") {
         url.searchParams.append('status', selectedStatus);
@@ -78,7 +81,7 @@ const ShipperDashboard = ({ user }: ShipperDashboardProps) => {
   const updateShipmentStatus = async (orderId: number, status: string, trackingNumber?: string, notes?: string) => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:3000/api/shipping-management/orders/${orderId}/shipment/status`, {
+      const response = await fetch(`${API_BASE_URL}/shipping-management/orders/${orderId}/shipment/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -118,7 +121,7 @@ const ShipperDashboard = ({ user }: ShipperDashboardProps) => {
   const confirmDelivery = async (orderId: number, notes?: string) => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:3000/api/shipping-management/orders/${orderId}/shipment/confirm-delivery`, {
+      const response = await fetch(`${API_BASE_URL}/shipping-management/orders/${orderId}/shipment/confirm-delivery`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -154,7 +157,7 @@ const ShipperDashboard = ({ user }: ShipperDashboardProps) => {
   const reportIssue = async (orderId: number, notes: string) => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:3000/api/shipping-management/orders/${orderId}/shipment/report-issue`, {
+      const response = await fetch(`${API_BASE_URL}/shipping-management/orders/${orderId}/shipment/report-issue`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

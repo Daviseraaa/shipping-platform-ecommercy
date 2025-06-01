@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, User, Search, UserPlus } from "lucide-react";
+import { Package, User, Search, UserPlus, Phone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { ordersApi, shippersApi, shippingApi } from "@/services/api";
 
 interface SellerDashboardProps {
   user: any;
@@ -15,100 +15,118 @@ interface SellerDashboardProps {
 
 const SellerDashboard = ({ user }: SellerDashboardProps) => {
   const [orders, setOrders] = useState([]);
-  const [shippers, setShippers] = useState([]);
+  const [allShippers, setAllShippers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Mock data for demonstration (replace with actual API calls)
   useEffect(() => {
-    // Mock orders data
-    const mockOrders = [
-      {
-        order_id: 1,
-        order_code: "ORD-001",
-        total_price: 500000,
-        status: "processing",
-        user: { full_name: "Nguyễn Văn A" },
-        shipping: {
-          status: "pending",
-          shipper_id: null,
-        }
-      },
-      {
-        order_id: 2,
-        order_code: "ORD-002",
-        total_price: 750000,
-        status: "ready_to_ship",
-        user: { full_name: "Trần Thị B" },
-        shipping: {
-          status: "pending",
-          shipper_id: null,
-        }
-      },
-    ];
-
-    // Mock shippers data
-    const mockShippers = [
-      { user_id: 101, username: "shipper01", full_name: "Lê Văn Giao", phone: "0901234567" },
-      { user_id: 102, username: "shipper02", full_name: "Phạm Thị Nhanh", phone: "0907654321" },
-      { user_id: 103, username: "shipper03", full_name: "Hoàng Minh Tốc", phone: "0903456789" },
-    ];
-
-    setTimeout(() => {
-      setOrders(mockOrders);
-      setShippers(mockShippers);
-      setLoading(false);
-    }, 1000);
+    fetchOrders();
+    fetchShippers();
   }, []);
 
-  const assignShipper = async (orderId: number, shipperId: number) => {
+  const fetchOrders = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:3000/api/shipping-management/orders/${orderId}/assign-shipper`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          shipper_id: shipperId,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast({
-          title: "Thành công",
-          description: data.message || "Gán shipper thành công",
-        });
-        
-        // Update local state
-        setOrders(orders.map((order: any) => 
-          order.order_id === orderId 
-            ? { ...order, shipping: { ...order.shipping, shipper_id: shipperId, status: "assigned" } }
-            : order
-        ));
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: "Lỗi",
-          description: errorData.message || "Không thể gán shipper",
-          variant: "destructive",
-        });
+      // Giả sử user có shopId, nếu không thì sử dụng mock data
+      const shopId = user.shopId || 1; // Mock shopId
+      const response = await ordersApi.getShopOrders(shopId);
+      
+      if (response.success && response.data) {
+        // API trả về trong data.products nhưng thực tế là orders
+        setOrders(response.data.products || response.data.orders || []);
       }
     } catch (error) {
-      console.error('Error assigning shipper:', error);
+      console.error('Error fetching orders:', error);
+      // Fallback to mock data nếu API không hoạt động
+      const mockOrders = [
+        {
+          order_id: 1,
+          order_code: "ORD-001",
+          total_price: 500000,
+          status: "processing",
+          user: { full_name: "Nguyễn Văn A" },
+          orderShipping: {
+            status: "pending",
+            shipper_id: null,
+          }
+        },
+        {
+          order_id: 2,
+          order_code: "ORD-002",
+          total_price: 750000,
+          status: "ready_to_ship",
+          user: { full_name: "Trần Thị B" },
+          orderShipping: {
+            status: "pending",
+            shipper_id: null,
+          }
+        },
+      ];
+      setOrders(mockOrders);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchShippers = async () => {
+    try {
+      const response = await shippersApi.getAllShippers();
+      setAllShippers(response);
+    } catch (error) {
+      console.error('Error fetching shippers:', error);
+      // Fallback to mock data
+      const mockShippers = [
+        { user_id: 101, username: "shipper01", user_info: { full_name: "Lê Văn Giao", phone_number: "0901234567" } },
+        { user_id: 102, username: "shipper02", user_info: { full_name: "Phạm Thị Nhanh", phone_number: "0907654321" } },
+        { user_id: 103, username: "shipper03", user_info: { full_name: "Hoàng Minh Tốc", phone_number: "0903456789" } },
+      ];
+      setAllShippers(mockShippers);
+    }
+  };
+
+  const assignShipperByPhone = async (orderId: number, phoneNumber: string) => {
+    try {
+      // Tìm shipper bằng số điện thoại
+      const shipperResponse = await shippersApi.findShipperByPhone(phoneNumber);
+      
+      if (shipperResponse && shipperResponse.user_id) {
+        // Gán shipper cho đơn hàng
+        const assignResponse = await shippingApi.assignShipper(orderId, shipperResponse.user_id);
+        
+        toast({
+          title: "Thành công",
+          description: `Đã gán shipper ${shipperResponse.user_info?.full_name || shipperResponse.username} cho đơn hàng`,
+        });
+        
+        // Cập nhật local state
+        setOrders(orders.map((order: any) => 
+          order.order_id === orderId 
+            ? { 
+                ...order, 
+                orderShipping: { 
+                  ...order.orderShipping, 
+                  shipper_id: shipperResponse.user_id, 
+                  status: "assigned" 
+                } 
+              }
+            : order
+        ));
+        
+        return true;
+      }
+    } catch (error) {
+      console.error('Error assigning shipper by phone:', error);
       toast({
-        title: "Lỗi kết nối",
-        description: "Không thể kết nối đến server",
+        title: "Lỗi",
+        description: "Không thể tìm thấy shipper với số điện thoại này hoặc gán shipper thất bại",
         variant: "destructive",
       });
+      return false;
     }
   };
 
   const filteredOrders = orders.filter((order: any) =>
-    order.order_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.user.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+    order.order_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -150,7 +168,7 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {orders.filter((order: any) => !order.shipping?.shipper_id).length}
+              {orders.filter((order: any) => !order.orderShipping?.shipper_id).length}
             </div>
           </CardContent>
         </Card>
@@ -161,7 +179,7 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {orders.filter((order: any) => order.shipping?.shipper_id).length}
+              {orders.filter((order: any) => order.orderShipping?.shipper_id).length}
             </div>
           </CardContent>
         </Card>
@@ -171,7 +189,7 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{shippers.length}</div>
+            <div className="text-2xl font-bold">{allShippers.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -198,8 +216,7 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
             <OrderCard
               key={order.order_id}
               order={order}
-              shippers={shippers}
-              onAssignShipper={assignShipper}
+              onAssignShipperByPhone={assignShipperByPhone}
             />
           ))
         )}
@@ -208,25 +225,27 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
   );
 };
 
-// Order Card Component
-const OrderCard = ({ order, shippers, onAssignShipper }: any) => {
-  const [selectedShipper, setSelectedShipper] = useState("");
+// Order Card Component với tính năng gán shipper bằng số điện thoại
+const OrderCard = ({ order, onAssignShipperByPhone }: any) => {
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
 
-  const handleAssignShipper = async () => {
-    if (!selectedShipper) {
+  const handleAssignShipperByPhone = async () => {
+    if (!phoneNumber.trim()) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng chọn shipper",
+        description: "Vui lòng nhập số điện thoại shipper",
         variant: "destructive",
       });
       return;
     }
 
     setIsAssigning(true);
-    await onAssignShipper(order.order_id, parseInt(selectedShipper));
+    const success = await onAssignShipperByPhone(order.order_id, phoneNumber);
+    if (success) {
+      setPhoneNumber("");
+    }
     setIsAssigning(false);
-    setSelectedShipper("");
   };
 
   const getStatusColor = (status: string) => {
@@ -267,7 +286,7 @@ const OrderCard = ({ order, shippers, onAssignShipper }: any) => {
               Đơn hàng #{order.order_code}
             </CardTitle>
             <CardDescription>
-              Khách hàng: {order.user.full_name}
+              Khách hàng: {order.user?.full_name}
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2">
@@ -276,11 +295,11 @@ const OrderCard = ({ order, shippers, onAssignShipper }: any) => {
               {order.status === "ready_to_ship" && "Sẵn sàng giao"}
               {order.status === "shipped" && "Đã giao"}
             </Badge>
-            <Badge className={getShippingStatusColor(order.shipping.status)}>
-              {order.shipping.status === "pending" && "Chờ gán shipper"}
-              {order.shipping.status === "assigned" && "Đã gán shipper"}
-              {order.shipping.status === "on_the_way" && "Đang giao"}
-              {order.shipping.status === "delivered" && "Đã giao"}
+            <Badge className={getShippingStatusColor(order.orderShipping?.status || "pending")}>
+              {(order.orderShipping?.status === "pending" || !order.orderShipping?.status) && "Chờ gán shipper"}
+              {order.orderShipping?.status === "assigned" && "Đã gán shipper"}
+              {order.orderShipping?.status === "on_the_way" && "Đang giao"}
+              {order.orderShipping?.status === "delivered" && "Đã giao"}
             </Badge>
           </div>
         </div>
@@ -293,32 +312,27 @@ const OrderCard = ({ order, shippers, onAssignShipper }: any) => {
           </span>
         </div>
 
-        {/* Assign Shipper Section */}
-        {!order.shipping.shipper_id && (order.status === "processing" || order.status === "ready_to_ship") && (
+        {/* Assign Shipper by Phone Section */}
+        {!order.orderShipping?.shipper_id && (order.status === "processing" || order.status === "ready_to_ship") && (
           <div className="p-4 bg-gray-50 rounded-lg space-y-4">
-            <h4 className="font-medium text-gray-900">Gán shipper cho đơn hàng</h4>
+            <h4 className="font-medium text-gray-900">Gán shipper bằng số điện thoại</h4>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <Label htmlFor="shipper-select">Chọn shipper</Label>
-                <Select value={selectedShipper} onValueChange={setSelectedShipper}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn shipper..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shippers.map((shipper: any) => (
-                      <SelectItem key={shipper.user_id} value={shipper.user_id.toString()}>
-                        {shipper.full_name} - {shipper.phone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="phone-input">Số điện thoại shipper</Label>
+                <Input
+                  id="phone-input"
+                  placeholder="Nhập số điện thoại..."
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                />
               </div>
               <div className="flex items-end">
                 <Button
-                  onClick={handleAssignShipper}
-                  disabled={isAssigning || !selectedShipper}
+                  onClick={handleAssignShipperByPhone}
+                  disabled={isAssigning || !phoneNumber.trim()}
                   className="w-full sm:w-auto"
                 >
+                  <Phone className="w-4 h-4 mr-2" />
                   {isAssigning ? "Đang gán..." : "Gán shipper"}
                 </Button>
               </div>
@@ -327,12 +341,12 @@ const OrderCard = ({ order, shippers, onAssignShipper }: any) => {
         )}
 
         {/* Assigned Shipper Info */}
-        {order.shipping.shipper_id && (
+        {order.orderShipping?.shipper_id && (
           <div className="p-4 bg-green-50 rounded-lg">
             <h4 className="font-medium text-green-900 mb-2">Shipper đã được gán</h4>
             <div className="text-sm text-green-800">
-              <p>ID Shipper: {order.shipping.shipper_id}</p>
-              <p>Trạng thái: {order.shipping.status}</p>
+              <p>ID Shipper: {order.orderShipping.shipper_id}</p>
+              <p>Trạng thái: {order.orderShipping.status}</p>
             </div>
           </div>
         )}

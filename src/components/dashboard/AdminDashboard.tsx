@@ -1,0 +1,298 @@
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Package, Users, Search, UserPlus, Phone, Shield } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { ordersApi, shippersApi, shippingApi } from "@/services/api";
+
+interface AdminDashboardProps {
+  user: any;
+}
+
+const AdminDashboard = ({ user }: AdminDashboardProps) => {
+  const [orders, setOrders] = useState([]);
+  const [shippers, setShippers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [foundShipper, setFoundShipper] = useState(null);
+
+  // Fetch all shippers
+  const fetchShippers = async () => {
+    try {
+      const response = await shippersApi.getAllShippers();
+      setShippers(response);
+    } catch (error) {
+      console.error('Error fetching shippers:', error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách shipper",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchShippers();
+  }, []);
+
+  const handlePhoneSearch = async () => {
+    if (!phoneSearch.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập số điện thoại",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await shippersApi.findShipperByPhone(phoneSearch);
+      setFoundShipper(response);
+      toast({
+        title: "Thành công",
+        description: "Tìm thấy shipper",
+      });
+    } catch (error) {
+      console.error('Error finding shipper:', error);
+      setFoundShipper(null);
+      toast({
+        title: "Lỗi",
+        description: "Không tìm thấy shipper với số điện thoại này",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetUserAsShipper = async (userId: number) => {
+    try {
+      const response = await shippersApi.setUserAsShipper(userId);
+      toast({
+        title: "Thành công",
+        description: response.message,
+      });
+      fetchShippers(); // Refresh shippers list
+    } catch (error) {
+      console.error('Error setting user as shipper:', error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể chuyển vai trò thành shipper",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveShipperRole = async (userId: number) => {
+    try {
+      const response = await shippersApi.removeShipperRole(userId);
+      toast({
+        title: "Thành công",
+        description: response.message,
+      });
+      fetchShippers(); // Refresh shippers list
+    } catch (error) {
+      console.error('Error removing shipper role:', error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể gỡ vai trò shipper",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredShippers = shippers.filter((shipper: any) =>
+    shipper.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    shipper.user_info?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    shipper.user_info?.phone_number?.includes(searchTerm)
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Dashboard Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Dashboard Admin</h2>
+          <p className="text-gray-600">Quản lý hệ thống và shipper</p>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tổng Shipper</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{shippers.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Shipper Hoạt Động</CardTitle>
+            <UserPlus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {shippers.filter((shipper: any) => shipper.is_active).length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tổng Đơn Hàng</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{orders.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="shippers" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="shippers">Quản Lý Shipper</TabsTrigger>
+          <TabsTrigger value="search">Tìm Kiếm Shipper</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="shippers" className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Tìm kiếm shipper..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {filteredShippers.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900">Không có shipper nào</h3>
+                  <p className="text-gray-600">Hiện tại chưa có shipper nào trong hệ thống.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredShippers.map((shipper: any) => (
+                <ShipperCard
+                  key={shipper.user_id}
+                  shipper={shipper}
+                  onRemoveRole={handleRemoveShipperRole}
+                />
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="search" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tìm Shipper Theo Số Điện Thoại</CardTitle>
+              <CardDescription>Nhập số điện thoại để tìm kiếm shipper</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex space-x-4">
+                <div className="flex-1">
+                  <Label htmlFor="phone-search">Số điện thoại</Label>
+                  <Input
+                    id="phone-search"
+                    placeholder="Nhập số điện thoại..."
+                    value={phoneSearch}
+                    onChange={(e) => setPhoneSearch(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={handlePhoneSearch} disabled={loading}>
+                    <Phone className="w-4 h-4 mr-2" />
+                    {loading ? "Đang tìm..." : "Tìm kiếm"}
+                  </Button>
+                </div>
+              </div>
+
+              {foundShipper && (
+                <div className="mt-4">
+                  <h4 className="font-medium mb-2">Kết quả tìm kiếm:</h4>
+                  <ShipperCard
+                    shipper={foundShipper}
+                    onRemoveRole={handleRemoveShipperRole}
+                    showActions={true}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+// Shipper Card Component
+const ShipperCard = ({ shipper, onRemoveRole, showActions = true }: any) => {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600" />
+              {shipper.user_info?.full_name || shipper.username}
+            </CardTitle>
+            <CardDescription>
+              @{shipper.username} • ID: {shipper.user_id}
+            </CardDescription>
+          </div>
+          <Badge variant={shipper.is_active ? "default" : "secondary"}>
+            {shipper.is_active ? "Hoạt động" : "Không hoạt động"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Email:</span>
+            <p className="font-medium">{shipper.user_info?.email || "Chưa cập nhật"}</p>
+          </div>
+          <div>
+            <span className="text-gray-600">Số điện thoại:</span>
+            <p className="font-medium">{shipper.user_info?.phone_number || "Chưa cập nhật"}</p>
+          </div>
+        </div>
+
+        {shipper.totalDeliveredOrders !== undefined && (
+          <div className="text-sm">
+            <span className="text-gray-600">Đơn hàng đã giao:</span>
+            <span className="font-medium ml-2 text-green-600">{shipper.totalDeliveredOrders}</span>
+          </div>
+        )}
+
+        {showActions && (
+          <div className="flex space-x-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => onRemoveRole(shipper.user_id)}
+            >
+              Gỡ vai trò Shipper
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default AdminDashboard;

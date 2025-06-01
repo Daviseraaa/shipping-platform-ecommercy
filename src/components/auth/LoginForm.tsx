@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Truck, Store, Eye, EyeOff } from "lucide-react";
+import { Truck, Store, Shield, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface LoginFormProps {
@@ -27,7 +27,7 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
     });
   };
 
-  const handleLogin = async (role: "shipper" | "seller") => {
+  const handleLogin = async (role: "shipper" | "seller" | "admin") => {
     if (!formData.username || !formData.password) {
       toast({
         title: "Lỗi",
@@ -54,16 +54,15 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Simulate role check (you might need to adjust based on your API response)
         const userData = {
           ...data,
-          role: role, // Use the selected role from tabs
+          role: role,
           username: formData.username,
         };
 
         toast({
           title: "Đăng nhập thành công",
-          description: `Chào mừng ${role === "shipper" ? "Shipper" : "Seller"}!`,
+          description: `Chào mừng ${role === "shipper" ? "Shipper" : role === "seller" ? "Seller" : "Admin"}!`,
         });
 
         onLoginSuccess(userData);
@@ -102,7 +101,7 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="shipper" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="shipper" className="flex items-center gap-2">
                 <Truck className="w-4 h-4" />
                 Shipper
@@ -111,105 +110,70 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
                 <Store className="w-4 h-4" />
                 Seller
               </TabsTrigger>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Admin
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="shipper" className="space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Tên đăng nhập</Label>
-                  <Input
-                    id="username"
-                    name="username"
-                    type="text"
-                    placeholder="Nhập tên đăng nhập"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Mật khẩu</Label>
-                  <div className="relative">
+            {["shipper", "seller", "admin"].map((role) => (
+              <TabsContent key={role} value={role} className="space-y-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`username-${role}`}>Tên đăng nhập</Label>
                     <Input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Nhập mật khẩu"
-                      value={formData.password}
+                      id={`username-${role}`}
+                      name="username"
+                      type="text"
+                      placeholder="Nhập tên đăng nhập"
+                      value={formData.username}
                       onChange={handleInputChange}
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
                   </div>
-                </div>
-                <Button
-                  onClick={() => handleLogin("shipper")}
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-                >
-                  {isLoading ? "Đang đăng nhập..." : "Đăng nhập với tư cách Shipper"}
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="seller" className="space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username-seller">Tên đăng nhập</Label>
-                  <Input
-                    id="username-seller"
-                    name="username"
-                    type="text"
-                    placeholder="Nhập tên đăng nhập"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password-seller">Mật khẩu</Label>
-                  <div className="relative">
-                    <Input
-                      id="password-seller"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Nhập mật khẩu"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor={`password-${role}`}>Mật khẩu</Label>
+                    <div className="relative">
+                      <Input
+                        id={`password-${role}`}
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Nhập mật khẩu"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
+                  <Button
+                    onClick={() => handleLogin(role as "shipper" | "seller" | "admin")}
+                    disabled={isLoading}
+                    className={`w-full ${
+                      role === "shipper" 
+                        ? "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                        : role === "seller"
+                        ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                        : "bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700"
+                    }`}
+                  >
+                    {isLoading ? "Đang đăng nhập..." : `Đăng nhập với tư cách ${
+                      role === "shipper" ? "Shipper" : role === "seller" ? "Seller" : "Admin"
+                    }`}
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => handleLogin("seller")}
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                >
-                  {isLoading ? "Đang đăng nhập..." : "Đăng nhập với tư cách Seller"}
-                </Button>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            ))}
           </Tabs>
         </CardContent>
       </Card>

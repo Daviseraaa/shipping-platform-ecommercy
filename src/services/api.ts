@@ -1,5 +1,5 @@
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('accessToken');
@@ -117,5 +117,18 @@ export const shippingApi = {
       headers: getAuthHeaders(),
     });
     return response.json();
+  },
+
+  // New function to assign shipper by phone number
+  assignShipperByPhone: async (orderId: number, phoneNumber: string) => {
+    // First, find the shipper by phone number
+    const shipperResponse = await shippersApi.findShipperByPhone(phoneNumber);
+    
+    if (shipperResponse && shipperResponse.user_id) {
+      // Then assign the shipper to the order
+      return await shippingApi.assignShipper(orderId, shipperResponse.user_id);
+    } else {
+      throw new Error('Shipper not found');
+    }
   },
 };

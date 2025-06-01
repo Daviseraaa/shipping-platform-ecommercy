@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, User, Search, UserPlus, Phone } from "lucide-react";
+import { Package, User, Search, UserPlus, Phone, MapPin, Clock, Star } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { ordersApi, shippersApi, shippingApi } from "@/services/api";
+import { ordersApi, shippingApi } from "@/services/api";
 
 interface SellerDashboardProps {
   user: any;
@@ -15,51 +15,84 @@ interface SellerDashboardProps {
 
 const SellerDashboard = ({ user }: SellerDashboardProps) => {
   const [orders, setOrders] = useState([]);
-  const [allShippers, setAllShippers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchOrders();
-    fetchShippers();
   }, []);
 
   const fetchOrders = async () => {
     try {
-      // Giả sử user có shopId, nếu không thì sử dụng mock data
-      const shopId = user.shopId || 1; // Mock shopId
+      const shopId = user.shopId || 1;
       const response = await ordersApi.getShopOrders(shopId);
       
       if (response.success && response.data) {
-        // API trả về trong data.products nhưng thực tế là orders
         setOrders(response.data.products || response.data.orders || []);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
-      // Fallback to mock data nếu API không hoạt động
       const mockOrders = [
         {
           order_id: 1,
           order_code: "ORD-001",
           total_price: 500000,
+          subtotal_price: 450000,
+          shipping_fee: 50000,
+          discount_amount: 0,
           status: "processing",
-          user: { full_name: "Nguyễn Văn A" },
+          note: "Giao hàng nhanh",
+          created_at: "2024-01-15T10:30:00Z",
+          user: { 
+            user_id: 5,
+            username: "customer1",
+            user_info: {
+              full_name: "Nguyễn Văn A",
+              phone_number: "0901234567",
+              email: "customer1@example.com"
+            }
+          },
+          orderItems: [
+            {
+              order_item_id: 1,
+              item_name: "Áo thun cotton",
+              quantity: 2,
+              price: 150000,
+              item_image_url: "https://via.placeholder.com/100",
+              item_attributes: { size: "L", color: "Đỏ" }
+            },
+            {
+              order_item_id: 2,
+              item_name: "Quần jean",
+              quantity: 1,
+              price: 300000,
+              item_image_url: "https://via.placeholder.com/100",
+              item_attributes: { size: "32", color: "Xanh" }
+            }
+          ],
           orderShipping: {
             status: "pending",
             shipper_id: null,
-          }
-        },
-        {
-          order_id: 2,
-          order_code: "ORD-002",
-          total_price: 750000,
-          status: "ready_to_ship",
-          user: { full_name: "Trần Thị B" },
-          orderShipping: {
-            status: "pending",
-            shipper_id: null,
-          }
-        },
+            tracking_number: null,
+            shipping_address: {
+              full_name: "Nguyễn Văn A",
+              phone_number: "0901234567",
+              street_address: "123 Đường Lê Lợi",
+              ward: "Phường Bến Nghé",
+              district: "Quận 1",
+              city: "TP.HCM",
+              country: "Vietnam"
+            }
+          },
+          payments: [
+            {
+              payment_id: 1,
+              amount: 500000,
+              payment_method: "cod",
+              status: "pending"
+            }
+          ]
+        }
       ];
       setOrders(mockOrders);
     } finally {
@@ -67,52 +100,30 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
     }
   };
 
-  const fetchShippers = async () => {
-    try {
-      const response = await shippersApi.getAllShippers();
-      setAllShippers(response);
-    } catch (error) {
-      console.error('Error fetching shippers:', error);
-      // Fallback to mock data
-      const mockShippers = [
-        { user_id: 101, username: "shipper01", user_info: { full_name: "Lê Văn Giao", phone_number: "0901234567" } },
-        { user_id: 102, username: "shipper02", user_info: { full_name: "Phạm Thị Nhanh", phone_number: "0907654321" } },
-        { user_id: 103, username: "shipper03", user_info: { full_name: "Hoàng Minh Tốc", phone_number: "0903456789" } },
-      ];
-      setAllShippers(mockShippers);
-    }
-  };
-
   const assignShipperByPhone = async (orderId: number, phoneNumber: string) => {
     try {
-      // Tìm shipper bằng số điện thoại
-      const shipperResponse = await shippersApi.findShipperByPhone(phoneNumber);
+      const response = await shippingApi.assignShipperByPhone(orderId, phoneNumber);
       
-      if (shipperResponse && shipperResponse.user_id) {
-        // Gán shipper cho đơn hàng
-        const assignResponse = await shippingApi.assignShipper(orderId, shipperResponse.user_id);
-        
-        toast({
-          title: "Thành công",
-          description: `Đã gán shipper ${shipperResponse.user_info?.full_name || shipperResponse.username} cho đơn hàng`,
-        });
-        
-        // Cập nhật local state
-        setOrders(orders.map((order: any) => 
-          order.order_id === orderId 
-            ? { 
-                ...order, 
-                orderShipping: { 
-                  ...order.orderShipping, 
-                  shipper_id: shipperResponse.user_id, 
-                  status: "assigned" 
-                } 
-              }
-            : order
-        ));
-        
-        return true;
-      }
+      toast({
+        title: "Thành công",
+        description: "Đã gán shipper cho đơn hàng",
+      });
+      
+      // Update local state
+      setOrders(orders.map((order: any) => 
+        order.order_id === orderId 
+          ? { 
+              ...order, 
+              orderShipping: { 
+                ...order.orderShipping, 
+                shipper_id: response.orderShipping?.shipper_id, 
+                status: "assigned" 
+              } 
+            }
+          : order
+      ));
+      
+      return true;
     } catch (error) {
       console.error('Error assigning shipper by phone:', error);
       toast({
@@ -126,7 +137,7 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
 
   const filteredOrders = orders.filter((order: any) =>
     order.order_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    order.user?.user_info?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -185,11 +196,15 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Shipper khả dụng</CardTitle>
+            <CardTitle className="text-sm font-medium">Doanh thu</CardTitle>
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{allShippers.length}</div>
+            <div className="text-2xl font-bold">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                orders.reduce((sum: number, order: any) => sum + parseFloat(order.total_price || 0), 0)
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -225,7 +240,7 @@ const SellerDashboard = ({ user }: SellerDashboardProps) => {
   );
 };
 
-// Order Card Component với tính năng gán shipper bằng số điện thoại
+// Enhanced Order Card Component with more database information
 const OrderCard = ({ order, onAssignShipperByPhone }: any) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
@@ -250,67 +265,173 @@ const OrderCard = ({ order, onAssignShipperByPhone }: any) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "processing":
-        return "bg-blue-100 text-blue-800";
-      case "ready_to_ship":
-        return "bg-yellow-100 text-yellow-800";
-      case "shipped":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+      case "pending": return "bg-orange-100 text-orange-800";
+      case "processing": return "bg-blue-100 text-blue-800";
+      case "ready_to_ship": return "bg-yellow-100 text-yellow-800";
+      case "shipped": return "bg-green-100 text-green-800";
+      case "delivered": return "bg-green-200 text-green-900";
+      case "cancelled": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
   const getShippingStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
-        return "bg-gray-100 text-gray-800";
-      case "assigned":
-        return "bg-blue-100 text-blue-800";
-      case "on_the_way":
-        return "bg-yellow-100 text-yellow-800";
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+      case "pending": return "bg-gray-100 text-gray-800";
+      case "assigned": return "bg-blue-100 text-blue-800";
+      case "on_the_way": return "bg-yellow-100 text-yellow-800";
+      case "delivered": return "bg-green-100 text-green-800";
+      case "delivery_failed": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN');
   };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-          <div>
+          <div className="flex-1">
             <CardTitle className="text-lg flex items-center gap-2">
               <Package className="w-5 h-5 text-blue-600" />
               Đơn hàng #{order.order_code}
             </CardTitle>
-            <CardDescription>
-              Khách hàng: {order.user?.full_name}
+            <CardDescription className="flex items-center gap-4 mt-2">
+              <span className="flex items-center gap-1">
+                <User className="w-4 h-4" />
+                {order.user?.user_info?.full_name || order.user?.username}
+              </span>
+              <span className="flex items-center gap-1">
+                <Phone className="w-4 h-4" />
+                {order.user?.user_info?.phone_number}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {formatDate(order.created_at)}
+              </span>
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2">
             <Badge className={getStatusColor(order.status)}>
+              {order.status === "pending" && "Chờ xử lý"}
               {order.status === "processing" && "Đang xử lý"}
               {order.status === "ready_to_ship" && "Sẵn sàng giao"}
               {order.status === "shipped" && "Đã giao"}
+              {order.status === "delivered" && "Đã nhận"}
+              {order.status === "cancelled" && "Đã hủy"}
             </Badge>
             <Badge className={getShippingStatusColor(order.orderShipping?.status || "pending")}>
               {(order.orderShipping?.status === "pending" || !order.orderShipping?.status) && "Chờ gán shipper"}
               {order.orderShipping?.status === "assigned" && "Đã gán shipper"}
               {order.orderShipping?.status === "on_the_way" && "Đang giao"}
               {order.orderShipping?.status === "delivered" && "Đã giao"}
+              {order.orderShipping?.status === "delivery_failed" && "Giao thất bại"}
             </Badge>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-gray-600">Tổng tiền:</span>
-          <span className="font-semibold text-green-600">
-            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total_price)}
-          </span>
+      <CardContent className="space-y-6">
+        {/* Order Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Tạm tính:</span>
+            <p className="font-medium">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.subtotal_price || 0)}
+            </p>
+          </div>
+          <div>
+            <span className="text-gray-600">Phí ship:</span>
+            <p className="font-medium">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.shipping_fee || 0)}
+            </p>
+          </div>
+          <div>
+            <span className="text-gray-600">Giảm giá:</span>
+            <p className="font-medium text-red-600">
+              -{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.discount_amount || 0)}
+            </p>
+          </div>
+          <div>
+            <span className="text-gray-600">Tổng tiền:</span>
+            <p className="font-semibold text-green-600">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total_price)}
+            </p>
+          </div>
         </div>
+
+        {/* Order Items */}
+        {order.orderItems && order.orderItems.length > 0 && (
+          <div>
+            <h4 className="font-medium text-gray-900 mb-3">Sản phẩm đặt mua:</h4>
+            <div className="space-y-3">
+              {order.orderItems.map((item: any) => (
+                <div key={item.order_item_id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  {item.item_image_url && (
+                    <img 
+                      src={item.item_image_url} 
+                      alt={item.item_name}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <h5 className="font-medium">{item.item_name}</h5>
+                    <p className="text-sm text-gray-600">
+                      Số lượng: {item.quantity} | Giá: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.price)}
+                    </p>
+                    {item.item_attributes && (
+                      <p className="text-sm text-gray-500">
+                        {Object.entries(item.item_attributes).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Shipping Address */}
+        {order.orderShipping?.shipping_address && (
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Địa chỉ giao hàng
+            </h4>
+            <div className="text-sm text-blue-800">
+              <p className="font-medium">{order.orderShipping.shipping_address.full_name}</p>
+              <p>{order.orderShipping.shipping_address.phone_number}</p>
+              <p>{order.orderShipping.shipping_address.street_address}</p>
+              <p>
+                {order.orderShipping.shipping_address.ward}, {order.orderShipping.shipping_address.district}, {order.orderShipping.shipping_address.city}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Information */}
+        {order.payments && order.payments.length > 0 && (
+          <div className="p-4 bg-green-50 rounded-lg">
+            <h4 className="font-medium text-green-900 mb-2">Thông tin thanh toán</h4>
+            {order.payments.map((payment: any) => (
+              <div key={payment.payment_id} className="text-sm text-green-800">
+                <p>Phương thức: {payment.payment_method === 'cod' ? 'COD' : payment.payment_method}</p>
+                <p>Trạng thái: {payment.status === 'pending' ? 'Chờ thanh toán' : payment.status}</p>
+                <p>Số tiền: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(payment.amount)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Order Note */}
+        {order.note && (
+          <div className="p-4 bg-yellow-50 rounded-lg">
+            <h4 className="font-medium text-yellow-900 mb-2">Ghi chú đơn hàng</h4>
+            <p className="text-sm text-yellow-800">{order.note}</p>
+          </div>
+        )}
 
         {/* Assign Shipper by Phone Section */}
         {!order.orderShipping?.shipper_id && (order.status === "processing" || order.status === "ready_to_ship") && (
@@ -347,6 +468,9 @@ const OrderCard = ({ order, onAssignShipperByPhone }: any) => {
             <div className="text-sm text-green-800">
               <p>ID Shipper: {order.orderShipping.shipper_id}</p>
               <p>Trạng thái: {order.orderShipping.status}</p>
+              {order.orderShipping.tracking_number && (
+                <p>Mã vận đơn: {order.orderShipping.tracking_number}</p>
+              )}
             </div>
           </div>
         )}

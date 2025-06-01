@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Users, Search, UserPlus, Phone, Shield } from "lucide-react";
+import { Package, Users, Search, UserPlus, Phone, Shield, MapPin, Mail, Star } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ordersApi, shippersApi, shippingApi } from "@/services/api";
 
@@ -240,19 +240,25 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   );
 };
 
-// Shipper Card Component
+// Enhanced Shipper Card Component with more database information
 const ShipperCard = ({ shipper, onRemoveRole, showActions = true }: any) => {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN');
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-start">
-          <div>
+          <div className="flex-1">
             <CardTitle className="text-lg flex items-center gap-2">
               <Shield className="w-5 h-5 text-blue-600" />
               {shipper.user_info?.full_name || shipper.username}
             </CardTitle>
-            <CardDescription>
-              @{shipper.username} • ID: {shipper.user_id}
+            <CardDescription className="flex items-center gap-4 mt-2">
+              <span>@{shipper.username}</span>
+              <span>ID: {shipper.user_id}</span>
+              <span>Tham gia: {formatDate(shipper.created_at)}</span>
             </CardDescription>
           </div>
           <Badge variant={shipper.is_active ? "default" : "secondary"}>
@@ -261,26 +267,87 @@ const ShipperCard = ({ shipper, onRemoveRole, showActions = true }: any) => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-600">Email:</span>
-            <p className="font-medium">{shipper.user_info?.email || "Chưa cập nhật"}</p>
+        {/* Contact Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-gray-500" />
+            <div>
+              <span className="text-gray-600 text-sm">Email:</span>
+              <p className="font-medium">{shipper.user_info?.email || "Chưa cập nhật"}</p>
+            </div>
           </div>
-          <div>
-            <span className="text-gray-600">Số điện thoại:</span>
-            <p className="font-medium">{shipper.user_info?.phone_number || "Chưa cập nhật"}</p>
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-gray-500" />
+            <div>
+              <span className="text-gray-600 text-sm">Số điện thoại:</span>
+              <p className="font-medium">{shipper.user_info?.phone_number || "Chưa cập nhật"}</p>
+            </div>
           </div>
         </div>
 
-        {shipper.totalDeliveredOrders !== undefined && (
-          <div className="text-sm">
-            <span className="text-gray-600">Đơn hàng đã giao:</span>
-            <span className="font-medium ml-2 text-green-600">{shipper.totalDeliveredOrders}</span>
+        {/* Avatar */}
+        {shipper.user_info?.avatar_url && (
+          <div className="flex items-center gap-2">
+            <img 
+              src={shipper.user_info.avatar_url} 
+              alt="Avatar"
+              className="w-16 h-16 rounded-full object-cover"
+            />
           </div>
         )}
 
+        {/* Addresses */}
+        {shipper.user_addresses && shipper.user_addresses.length > 0 && (
+          <div>
+            <h5 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Địa chỉ
+            </h5>
+            <div className="space-y-2">
+              {shipper.user_addresses.map((address: any) => (
+                <div key={address.address_id} className="p-3 bg-gray-50 rounded-lg text-sm">
+                  <p className="font-medium">{address.full_name}</p>
+                  <p>{address.phone_number}</p>
+                  <p>{address.street_address}</p>
+                  <p>{address.ward}, {address.district}, {address.city}</p>
+                  {address.address_type && (
+                    <Badge variant="outline" className="mt-1">
+                      {address.address_type}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Performance Statistics */}
+        {shipper.totalDeliveredOrders !== undefined && (
+          <div className="flex items-center gap-2">
+            <Star className="w-4 h-4 text-yellow-500" />
+            <div>
+              <span className="text-gray-600 text-sm">Đơn hàng đã giao:</span>
+              <span className="font-medium ml-2 text-green-600">{shipper.totalDeliveredOrders}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Account Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Vai trò:</span>
+            <Badge variant="secondary" className="ml-2">
+              {shipper.role}
+            </Badge>
+          </div>
+          <div>
+            <span className="text-gray-600">Cập nhật cuối:</span>
+            <p className="font-medium">{formatDate(shipper.updated_at)}</p>
+          </div>
+        </div>
+
         {showActions && (
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 pt-4 border-t">
             <Button
               variant="destructive"
               size="sm"

@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Users, Search, UserPlus, Phone, Shield, MapPin, Mail, Star } from "lucide-react";
+import { Package, Users, Search, UserPlus, Phone, Shield, MapPin, Mail, Star, UserCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { ordersApi, shippersApi, shippingApi } from "@/services/api";
+import { ordersApi, shippersApi, shippingApi, usersApi } from "@/services/api";
 
 interface AdminDashboardProps {
   user: any;
@@ -17,10 +17,12 @@ interface AdminDashboardProps {
 const AdminDashboard = ({ user }: AdminDashboardProps) => {
   const [orders, setOrders] = useState([]);
   const [shippers, setShippers] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [phoneSearch, setPhoneSearch] = useState("");
   const [foundShipper, setFoundShipper] = useState(null);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
 
   // Fetch all shippers
   const fetchShippers = async () => {
@@ -37,8 +39,24 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
     }
   };
 
+  // Fetch all users
+  const fetchUsers = async () => {
+    try {
+      const response = await usersApi.getAllUsers();
+      setUsers(response);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách người dùng",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchShippers();
+    fetchUsers();
   }, []);
 
   const handlePhoneSearch = async () => {
@@ -80,6 +98,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
         description: response.message,
       });
       fetchShippers(); // Refresh shippers list
+      fetchUsers(); // Refresh users list
     } catch (error) {
       console.error('Error setting user as shipper:', error);
       toast({
@@ -98,6 +117,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
         description: response.message,
       });
       fetchShippers(); // Refresh shippers list
+      fetchUsers(); // Refresh users list
     } catch (error) {
       console.error('Error removing shipper role:', error);
       toast({
@@ -114,6 +134,15 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
     shipper.user_info?.phone_number?.includes(searchTerm)
   );
 
+  const filteredUsers = users.filter((user: any) =>
+    user.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.UserInfo?.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.UserInfo?.email?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.UserInfo?.phone_number?.includes(userSearchTerm)
+  );
+
+  const nonShipperUsers = filteredUsers.filter((user: any) => user.role !== 'shipper');
+
   return (
     <div className="space-y-6">
       {/* Dashboard Header */}
@@ -125,11 +154,20 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tổng Người Dùng</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{users.length}</div>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tổng Shipper</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{shippers.length}</div>
@@ -160,6 +198,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       <Tabs defaultValue="shippers" className="space-y-4">
         <TabsList>
           <TabsTrigger value="shippers">Quản Lý Shipper</TabsTrigger>
+          <TabsTrigger value="users">Quản Lý Người Dùng</TabsTrigger>
           <TabsTrigger value="search">Tìm Kiếm Shipper</TabsTrigger>
         </TabsList>
 
@@ -191,6 +230,40 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                   key={shipper.user_id}
                   shipper={shipper}
                   onRemoveRole={handleRemoveShipperRole}
+                />
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Tìm kiếm người dùng..."
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {nonShipperUsers.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900">Không có người dùng nào</h3>
+                  <p className="text-gray-600">Tất cả người dùng đều đã là shipper.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              nonShipperUsers.map((user: any) => (
+                <UserCard
+                  key={user.user_id}
+                  user={user}
+                  onSetAsShipper={handleSetUserAsShipper}
                 />
               ))
             )}
@@ -357,6 +430,117 @@ const ShipperCard = ({ shipper, onRemoveRole, showActions = true }: any) => {
             </Button>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// New User Card Component for managing regular users
+const UserCard = ({ user, onSetAsShipper }: any) => {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN');
+  };
+
+  const hasPhoneNumber = user.UserInfo?.phone_number;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="w-5 h-5 text-green-600" />
+              {user.UserInfo?.full_name || user.username}
+            </CardTitle>
+            <CardDescription className="flex items-center gap-4 mt-2">
+              <span>@{user.username}</span>
+              <span>ID: {user.user_id}</span>
+              <span>Tham gia: {formatDate(user.created_at)}</span>
+            </CardDescription>
+          </div>
+          <Badge variant={user.role === "admin" ? "destructive" : user.role === "seller" ? "secondary" : "outline"}>
+            {user.role}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Contact Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-gray-500" />
+            <div>
+              <span className="text-gray-600 text-sm">Email:</span>
+              <p className="font-medium">{user.UserInfo?.email || "Chưa cập nhật"}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-gray-500" />
+            <div>
+              <span className="text-gray-600 text-sm">Số điện thoại:</span>
+              <p className="font-medium">{user.UserInfo?.phone_number || "Chưa cập nhật"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Addresses */}
+        {user.UserAddresses && user.UserAddresses.length > 0 && (
+          <div>
+            <h5 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Địa chỉ ({user.UserAddresses.length})
+            </h5>
+            <div className="space-y-2">
+              {user.UserAddresses.slice(0, 2).map((address: any) => (
+                <div key={address.address_id} className="p-3 bg-gray-50 rounded-lg text-sm">
+                  <p className="font-medium">{address.full_name}</p>
+                  <p>{address.phone_number}</p>
+                  <p>{address.street_address}</p>
+                  <p>{address.ward}, {address.district}, {address.city}</p>
+                  {address.address_type && (
+                    <Badge variant="outline" className="mt-1">
+                      {address.address_type}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+              {user.UserAddresses.length > 2 && (
+                <p className="text-sm text-gray-500">+{user.UserAddresses.length - 2} địa chỉ khác</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Account Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Trạng thái:</span>
+            <Badge variant={user.is_active ? "default" : "secondary"} className="ml-2">
+              {user.is_active ? "Hoạt động" : "Không hoạt động"}
+            </Badge>
+          </div>
+          <div>
+            <span className="text-gray-600">Cập nhật cuối:</span>
+            <p className="font-medium">{formatDate(user.updated_at)}</p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex space-x-2 pt-4 border-t">
+          {!hasPhoneNumber && (
+            <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
+              ⚠️ Người dùng chưa cập nhật số điện thoại. Không thể chuyển thành shipper.
+            </div>
+          )}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => onSetAsShipper(user.user_id)}
+            disabled={!hasPhoneNumber || user.role === 'admin'}
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Chuyển thành Shipper
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

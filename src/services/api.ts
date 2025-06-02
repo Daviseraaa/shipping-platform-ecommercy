@@ -26,6 +26,23 @@ export const ordersApi = {
   },
 };
 
+// Users API
+export const usersApi = {
+  getAllUsers: async () => {
+    const response = await fetch(`${API_BASE_URL}/user/`, {
+      headers: getAuthHeaders(),
+    });
+    return response.json();
+  },
+
+  getUserById: async (userId: number) => {
+    const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.json();
+  },
+};
+
 // Shippers API
 export const shippersApi = {
   getAllShippers: async () => {

@@ -130,8 +130,8 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
   const filteredShippers = shippers.filter((shipper: any) =>
     shipper.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    shipper.user_info?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    shipper.user_info?.phone_number?.includes(searchTerm)
+    shipper.UserInfo?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    shipper.UserInfo?.phone_number?.includes(searchTerm)
   );
 
   const filteredUsers = users.filter((user: any) =>
@@ -326,7 +326,7 @@ const ShipperCard = ({ shipper, onRemoveRole, showActions = true }: any) => {
           <div className="flex-1">
             <CardTitle className="text-lg flex items-center gap-2">
               <Shield className="w-5 h-5 text-blue-600" />
-              {shipper.user_info?.full_name || shipper.username}
+              {shipper.UserInfo?.lastname || shipper.username}
             </CardTitle>
             <CardDescription className="flex items-center gap-4 mt-2">
               <span>@{shipper.username}</span>
@@ -346,14 +346,14 @@ const ShipperCard = ({ shipper, onRemoveRole, showActions = true }: any) => {
             <Mail className="w-4 h-4 text-gray-500" />
             <div>
               <span className="text-gray-600 text-sm">Email:</span>
-              <p className="font-medium">{shipper.user_info?.email || "Chưa cập nhật"}</p>
+              <p className="font-medium">{shipper.UserInfo?.email || "Chưa cập nhật"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4 text-gray-500" />
             <div>
               <span className="text-gray-600 text-sm">Số điện thoại:</span>
-              <p className="font-medium">{shipper.user_info?.phone_number || "Chưa cập nhật"}</p>
+              <p className="font-medium">{shipper.UserInfo?.phone_number || "Chưa cập nhật"}</p>
             </div>
           </div>
         </div>
@@ -450,7 +450,7 @@ const UserCard = ({ user, onSetAsShipper }: any) => {
           <div className="flex-1">
             <CardTitle className="text-lg flex items-center gap-2">
               <Users className="w-5 h-5 text-green-600" />
-              {user.UserInfo?.full_name || user.username}
+              {user.UserInfo?.lastname || user.username}
             </CardTitle>
             <CardDescription className="flex items-center gap-4 mt-2">
               <span>@{user.username}</span>
